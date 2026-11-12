@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Как хорошо ты знаешь Варю?</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Unbounded:wght@500;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#24153d;--fg:#fff;--grad:linear-gradient(90deg,#ff4d8d,#8b5cf6)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:Montserrat,system-ui,sans-serif;background:linear-gradient(135deg,#ff6fa5,#8b5cf6 60%,#4f46e5);background-attachment:fixed;color:var(--fg);text-align:center;transition:background .5s}
+#fl{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+#fl span{position:absolute;bottom:-60px;font-size:34px;opacity:.28;animation:rise linear infinite}
+@keyframes rise{to{transform:translateY(-115vh) rotate(40deg)}}
+@keyframes pop{0%{transform:scale(.2) rotate(-12deg);opacity:0}60%{transform:scale(1.15) rotate(4deg);opacity:1}100%{transform:scale(1) rotate(0)}}
+@keyframes bob{50%{transform:translateY(-14px) rotate(4deg)}}
+@keyframes shake{20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+@keyframes slide{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+@keyframes pulse{50%{transform:scale(1.06)}}
+#app{position:relative;z-index:1;max-width:900px;margin:auto;padding:18px 16px 40px}
+#app.big{max-width:1400px;font-size:1.45em}
+.nav{display:flex;justify-content:space-between;font-size:.8em;opacity:.85;margin-bottom:12px}
+h1,h2,h3{font-family:Unbounded,Montserrat,sans-serif;margin:.35em 0;line-height:1.1}
+h1{font-size:2.3em;font-weight:800}
+.huge{font-size:7em;line-height:1;margin:.1em 0;display:inline-block;animation:pop .7s both,bob 3s 1s ease-in-out infinite}
+.sub{font-size:1.25em;opacity:.92;animation:slide .6s .2s both}
+button,input,select{font:inherit;font-size:18px;padding:12px 26px;margin:5px;border-radius:999px;border:0}
+button{background:#fff;color:var(--ink);font-weight:800;cursor:pointer;box-shadow:0 8px 20px #0003;transition:transform .15s}
+button:hover:not(:disabled){transform:scale(1.05)}
+button:disabled{opacity:.45;cursor:default}
+button.go{animation:pulse 1.6s infinite}
+button.no{background:#24153d;color:#fff}
+input,select{background:#fff;color:var(--ink)}
+.q{background:#fff;color:var(--ink);font-size:1.5em;font-weight:600;padding:28px;border-radius:26px;box-shadow:0 14px 40px #0003;margin:14px 0;line-height:1.35;animation:slide .5s both}
+.chip{display:inline-block;background:#0003;border-radius:999px;padding:6px 18px;font-weight:800;font-size:.95em}
+.a{background:#24153d;color:#fff;border-radius:18px;padding:14px 20px;font-weight:800;font-size:1.3em;margin:10px 0;animation:pop .5s both}
+.panel{background:#fff;color:var(--ink);border-radius:20px;padding:14px;margin:12px 0;box-shadow:0 8px 24px #0002}
+.panel .a{margin-top:0}
+.buzz{width:100%;height:130px;font-size:38px;margin:12px 0;background:#ff2f5f;color:#fff;border-radius:30px;box-shadow:0 12px 28px #0005}
+.buzz:disabled{background:#999;opacity:.7;box-shadow:none}
+.who{font-family:Unbounded,sans-serif;animation:pop .4s both}
+.sc{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:8px 0 16px}
+.sc div{display:flex;align-items:center;gap:8px;background:#fff;color:var(--ink);padding:6px 16px 6px 6px;border-radius:999px;box-shadow:0 6px 16px #0002;font-weight:600;font-size:.9em;transition:transform .3s}
+.sc i{font-style:normal;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:20px}
+.sc u{text-decoration:none;color:#d33;cursor:pointer}
+.sc b{font-weight:800}
+.sc div.bad{background:#ffd0d0;animation:shake .5s}
+.sc div.win{transform:scale(1.12)}
+#app img,#app video{display:block;margin:10px auto;max-width:100%;max-height:45vh;border-radius:20px;box-shadow:0 14px 40px #0003;transition:filter .8s}
+#app .blur{filter:blur(22px)}
+.rank{font-size:1.4em;animation:slide .5s both}
+</style></head><body>
+<div id="fl"></div><div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const ROOM='varya-quiz-m4k7'; // поменяй на любое своё уникальное слово
+// Вопрос = [текст, ответ, картинка?]. Картинку клади в папку media/. Имя с "~" в начале (например "~chat1.jpg") = замазана, пока не показан ответ.
+const LV=[
+ {n:"Легчайший",s:"Знакомы 5 секунд",e:"👍",pts:100,c:"#1fae5b",c2:"#a6e05a",q:[
+  ["Какого числа у Вари день рождения?","15 ноября"],["Как зовут пса?","Рокс"],["Какая у Вари фамилия?","Табачник"],["Кто лучшая подруга Вари?","Вета"],["Знак зодиака Вари?","Скорпион"]]},
+ {n:"Средний",s:"Просто друг",e:"😎",pts:200,c:"#f2b705",c2:"#ffe066",dark:1,q:[
+  ["Любимый цвет Вари?","Фиолетовый"],["Какое приложение у Вари чаще всего открыто?","ТикТок"],["В каком городе родилась Варя?","Таллинн"],["Какое у Вари образование в Эстонии?","Никакого"],["Как звали первую собаку?","Фокс"],["Отчество Вари?","Николаевна"],["Как зовут маму Вари?","Алёна"]]},
+ {n:"Тяжёлый",s:"Бестии",e:"😇",pts:300,c:"#e5383b",c2:"#ff8a5c",q:[
+  ["Откуда у Вари шрам на лбу?","Ударилась о парапет"],["Любимая еда Вари?","Бургеры"],["С кем из нашей компании Варя познакомилась после Веты?","Костя"],["Любимое аниме (кроме Блича)?","Умамусуме"],["Любимый аниме-персонаж (кроме Блича)?","Агнэс Тахион"]]},
+ {n:"Невозможный",s:"Только Варя это знает",e:"🤫",e2:"😈",pts:400,c:"#6d28d9",c2:"#c026d3",q:[
+  ["Рост Вари?","156"],["Размер обуви Вари?","37"],["Какой цвет волос был у Вари в 2020?","Рыжий"],["Кем Варя мечтала стать в детстве?","Стоматологом"],["Любимый комикс Вари в детстве?","Ранфрен"]]}
+];
+// Для связи между разными сетями (Wi-Fi + мобильный) нужен TURN-сервер.
+// Бесплатно: зарегистрируйся на metered.ca (20 ГБ/мес), создай credential и вставь username и credential сюда:
+const TURN_USER='',TURN_PASS='';
+const ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.relay.metered.ca:80'},
+ {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}];
+if(TURN_USER)ICE.push({urls:['turn:standard.relay.metered.ca:80','turn:standard.relay.metered.ca:80?transport=tcp','turn:standard.relay.metered.ca:443','turns:standard.relay.metered.ca:443?transport=tcp'],username:TURN_USER,credential:TURN_PASS});
+const PCFG={config:{iceServers:ICE}};
+const app=document.getElementById('app'),fl=document.getElementById('fl');
+let role,peer,conns=[],hostConn,S,G,myId,pidOf={},rt=null;
+const AV=["😎","🦊","🐸","🤖","👻","🦄","🐯","🍕"];
+const lvl=i=>LV[i];
+
+function home(){document.body.style.background='';app.className='';floaty('🎂🎈✨');
+ app.innerHTML=`<div class=nav><b>для Вари 💜</b><span></span></div><div class=huge>🎂</div><h1>Как хорошо<br>ты знаешь<br>Варю?</h1>
+${localStorage.varyaG?'<button onclick="startHost(true)">Продолжить игру</button><br>':''}<button onclick="startHost()">${localStorage.varyaG?'Новая игра':'Я ведущий'}</button><hr style="border:0;height:1px;background:#fff5;margin:22px 0">
+<input id=name placeholder="Твоё имя"> <select id=av>${AV.map(a=>`<option>${a}</option>`).join('')}</select><br>
+<button onclick="join('player')">Войти игроком</button><br><button onclick="join('screen')">Войти как экран</button>`}
+
+function floaty(em){const k=[...new Intl.Segmenter().segment(em)].map(x=>x.segment);if(fl.dataset.e===em)return;fl.dataset.e=em;
+ fl.innerHTML=Array.from({length:16},(_,i)=>`<span style="left:${i*6.4}%;animation-duration:${9+i%6*3}s;animation-delay:-${i*2}s;font-size:${24+i%4*12}px">${k[i%k.length]}</span>`).join('')}
+
+// ---------- ВЕДУЩИЙ ----------
+function startHost(resume,tries=0){
+ role='host';sessionStorage.varyaHost='1';
+ if(tries===0){conns=[];pidOf={};let saved=null;try{saved=resume&&JSON.parse(localStorage.varyaG)}catch(e){}
+  G=saved||{players:{},stage:'lobby',lv:0,qi:0,open:false,buzzer:null,locked:[],wrong:null,hint:""}}
+ app.innerHTML='Запускаю комнату...';
+ try{peer&&peer.destroy()}catch(e){}
+ peer=new Peer(ROOM,PCFG);
+ peer.on('open',id=>{myId=id;push()});
+ peer.on('error',e=>{if(e.type==='unavailable-id'&&tries<10){app.innerHTML='Занимаю комнату… ('+(tries+1)+')';setTimeout(()=>startHost(resume,tries+1),3000)}
+  else alert(e.type==='unavailable-id'?'Комната занята: закрой другую вкладку ведущего.':'Ошибка: '+e.type)});
+ peer.on('connection',c=>{conns.push(c);c.on('data',m=>onMsg(c,m));c.on('open',push);c.on('close',()=>{conns=conns.filter(x=>x!==c)})});
+}
+function onMsg(c,m){
+ if(m.t==='join'&&m.role==='player'&&m.pid){pidOf[c.peer]=m.pid;
+  if(!G.players[m.pid])G.players[m.pid]={name:m.name||'Игрок',av:m.av||'😎',color:`hsl(${Math.random()*360|0},80%,60%)`,score:0}}
+ const id=pidOf[c.peer];
+ if(m.t==='buzz'&&G.stage==='q'&&G.open&&!G.buzzer&&G.players[id]&&!G.locked.includes(id)){G.buzzer=id;G.open=false;G.wrong=null}
+ push();
+}
+const Q=()=>LV[G.lv].q[G.qi];
+function pub(){const L=LV[G.lv],ans=G.stage==='ans';
+ return{players:G.players,stage:G.stage,lv:G.lv,qi:G.qi,
+  L:L&&{n:L.n,s:L.s,e:L.e,e2:L.e2,pts:L.pts,c:L.c,c2:L.c2,dark:L.dark,tot:L.q.length},
+  q:L&&['q','ans'].includes(G.stage)?{t:Q()[0],m:Q()[2]||null,a:ans?Q()[1]:null}:null,
+  open:G.open,buzzer:G.buzzer,locked:G.locked,wrong:G.wrong,hint:G.hint}}
+function push(){S=pub();try{localStorage.varyaG=JSON.stringify(G)}catch(e){}conns.forEach(c=>c.open&&c.send({t:'s',s:S}));render()}
+const pts=()=>LV[G.lv].pts,nm=id=>id&&G.players[id]?G.players[id].name:'';
+function toTitle(){G.stage='title';push()}
+function begin(){Object.assign(G,{lv:0,qi:0,stage:'lvl'});push()}
+function ask(){Object.assign(G,{stage:'q',open:true,buzzer:null,locked:[],wrong:null,hint:""});push()}
+function next(){G.qi++;if(G.qi>=LV[G.lv].q.length){G.lv++;G.qi=0;G.stage=G.lv>=LV.length?'end':'lvl';G.buzzer=null;G.open=false;push()}else ask()}
+function good(){const id=G.buzzer;G.players[id].score+=pts();G.stage='ans';G.open=false;push()}
+function bad(){const id=G.buzzer;G.players[id].score-=pts();G.locked.push(id);G.wrong=id;G.buzzer=null;
+ if(Object.keys(G.players).every(i=>G.locked.includes(i))){G.stage='ans';G.open=false}else G.open=true;push()}
+function showAns(){G.stage='ans';G.open=false;push()}
+function edit(id){const p=G.players[id];const n=prompt('Имя:',p.name);if(n)p.name=n;const s=prompt('Очки:',p.score);if(s!==null&&!isNaN(+s))p.score=+s;push()}
+function del(id){if(!confirm('Удалить игрока '+G.players[id].name+'?'))return;delete G.players[id];G.locked=G.locked.filter(x=>x!==id);
+ if(G.wrong===id)G.wrong=null;if(G.buzzer===id){G.buzzer=null;if(G.stage==='q')G.open=true}
+ conns.forEach(c=>{if(pidOf[c.peer]===id){try{c.send({t:'kick'})}catch(e){}setTimeout(()=>c.close(),300);delete pidOf[c.peer]}});push()}
+function hint(){const t=prompt('Реплика / подсказка для всех (пусто = убрать):');if(t!==null){G.hint=t;push()}}
+
+// ---------- ЭКРАН / ИГРОК ----------
+function join(r,me,auto){
+ me=me||{name:document.getElementById('name').value.trim(),av:document.getElementById('av').value};
+ if(r==='player'&&!me.name)return alert('Введи имя');
+ role=r;let pid=sessionStorage.varyaPid;if(!pid)pid=sessionStorage.varyaPid=Math.random().toString(36).slice(2,10);
+ myId=pid;sessionStorage.varyaMe=JSON.stringify({role:r,name:me.name,av:me.av});
+ app.innerHTML='Подключаюсь...';
+ try{peer&&peer.destroy()}catch(e){}
+ let kicked=false;const retry=()=>{clearTimeout(rt);rt=setTimeout(()=>join(r,me,true),3000)};
+ peer=new Peer(PCFG);
+ peer.on('open',()=>{hostConn=peer.connect(ROOM,{reliable:true});
+  hostConn.on('open',()=>{auto=true;hostConn.send({t:'join',role:r,name:me.name,av:me.av,pid})});
+  hostConn.on('data',m=>{if(m.t==='kick'){kicked=true;sessionStorage.clear();document.body.style.background='';app.innerHTML='<h2>Ведущий удалил тебя из игры</h2><button onclick="home()">На главную</button>';hostConn.close();return}S=m.s;render()});
+  hostConn.on('close',()=>{if(!kicked){app.innerHTML='Связь потеряна, переподключаюсь…';retry()}})});
+ peer.on('error',e=>{if(auto)retry();else{alert('Не удалось подключиться ('+e.type+'). Ведущий уже запустил игру?');home()}});
+}
+const mediaCache={};
+function mediaEl(f,blur){const n=f.replace(/^~/,'');if(!mediaCache[n]){const v=/\.(mp4|webm|mov|m4v)$/i.test(n),e=document.createElement(v?'video':'img');
+ e.src='media/'+n;if(v){e.controls=true;e.playsInline=true}e.onerror=()=>e.style.display='none';mediaCache[n]=e}
+ const e=mediaCache[n];e.classList.toggle('blur',blur);return e}
+
+function render(){
+ const s=S,H=role==='host',P=role==='player',SC=role==='screen',L=s.L,inLv=['lvl','q','ans'].includes(s.stage);
+ app.className=SC?'big':'';
+ if(inLv){document.body.style.background=`linear-gradient(135deg,${L.c},${L.c2})`;document.body.style.color=L.dark?'#2b2100':'#fff';floaty(L.e2?L.e+L.e2:L.e)}
+ else{document.body.style.background=s.stage==='end'?'linear-gradient(135deg,#ffb400,#ff4d8d,#8b5cf6)':'';document.body.style.color='';floaty(s.stage==='end'?'🎉🏆🎂🎈':'🎂🎈✨💜')}
+ if(P&&s.wrong===myId&&s.stage==='q')document.body.style.background='#ff6b6b';
+ let m='';const em=L&&(L.e+(L.e2||''));
+ if(s.stage==='lobby'){
+  m=`<div class=huge>🎂</div><h2>Ждём гостей…</h2><p>Подключились: <b>${Object.keys(s.players).length}</b></p>`+(H?`<button class=go onclick="toTitle()">Всё готово!</button>`:'');
+ }else if(s.stage==='title'){
+  m=`<div class=huge>🎉</div><h1>Как хорошо<br>ты знаешь<br>Варю?</h1><p class=sub>Тест на настоящего друга · 4 уровня</p>`+(H?`<button class=go onclick="begin()">Играть</button>`:'');
+ }else if(s.stage==='lvl'){
+  m=`<span class=chip>Уровень ${s.lv+1} из ${LV.length}</span><br><div class=huge>${em}</div><h1>${L.n}</h1><p class=sub>«${L.s}»</p><p class=sub><b>${L.pts}</b> очков за вопрос · ${L.tot} вопросов</p>`+(H?`<button class=go onclick="ask()">Поехали!</button>`:'');
+ }else if(inLv){
+  const c=s.q,ans=s.stage==='ans',mk=c.m;
+  m=`<span class=chip>${em} ${L.n} · вопрос ${s.qi+1}/${L.tot} · ${L.pts} очков</span><div class=q>${c.t}</div>${mk?'<div id=mm></div>':''}`;
+  if(ans){m+=`<div class=a>${c.a}</div>`+(s.buzzer?`<h2 class=who>✓ ${s.players[s.buzzer].av} ${s.players[s.buzzer].name} +${L.pts}</h2>`:'');
+   if(H)m+=`<button class=go onclick="next()">${s.qi+1>=L.tot?(s.lv+1>=LV.length?'К итогам 🏆':'Следующий уровень ➜'):'Дальше ➜'}</button>`}
+  else{m+=s.buzzer?`<h2 class=who>⚡ Отвечает: ${s.players[s.buzzer].av} ${s.players[s.buzzer].name}</h2>`:'<h2>Жмите!</h2>';
+   if(H)m+=`<div class=panel><div class=a>Ответ: ${Q()[1]}</div>`+(s.buzzer?`<button onclick="good()">✓ Верно</button><button class=no onclick="bad()">✗ Неверно</button>`:'Ждём нажатия... ')+`<button onclick="showAns()">Показать ответ</button></div>`}
+ }else if(s.stage==='end'){
+  const r=Object.values(s.players).sort((a,b)=>b.score-a.score);
+  m=`<div class=huge>🏆</div><h1>Итоги</h1>`+r.map((p,i)=>`<div class=rank style="animation-delay:${i*.15}s">${['🥇','🥈','🥉'][i]||i+1+'.'} ${p.av} ${p.name} — <b>${p.score}</b></div>`).join('')+`<p class=sub>Варя гордится тобой 💜</p>`;
+  if(H)m+=`<button onclick="if(confirm('Начать заново?')){G.players=Object.fromEntries(Object.entries(G.players).map(([k,p])=>[k,{...p,score:0}]));toTitle()}">Сыграть ещё раз</button>`;
+ }
+ if(s.hint)m+=`<div class=panel>💬 ${s.hint}</div>`;
+ if(H&&s.stage!=='lobby'&&s.stage!=='end')m+=`<button onclick="hint()">💬 Реплика</button>`;
+ if(P&&s.stage==='q')m+=`<button class=buzz ${s.open&&!s.locked.includes(myId)?'':'disabled'} onclick="hostConn.send({t:'buzz'})">ЖМИ!</button>`;
+ const top=Math.max(...Object.values(s.players).map(p=>p.score),1);
+ const sc=Object.entries(s.players).map(([id,p])=>`<div class="${id===s.wrong?'bad':p.score===top&&top>1?'win':''}" ${H?`onclick="edit('${id}')"`:''}><i style="background:${p.color}">${p.av}</i><span>${p.name}</span><b>${p.score}</b>${H?`<u onclick="event.stopPropagation();del('${id}')">✕</u>`:''}</div>`).join('');
+ app.innerHTML=`<div class=nav><b>Как хорошо ты знаешь Варю?</b><span>${H?'ведущий':P?'игрок':'экран'}</span></div><div class=sc>${sc}</div>${m}`;
+ const ph=document.getElementById('mm');if(ph&&s.q&&s.q.m)ph.replaceWith(mediaEl(s.q.m,s.q.m[0]==='~'&&s.stage!=='ans'));
+}
+const me0=JSON.parse(sessionStorage.varyaMe||'null');
+if(sessionStorage.varyaHost)startHost(true);else if(me0)join(me0.role,me0,true);else home();
+</script></body></html>
