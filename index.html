@@ -49,7 +49,8 @@ input,select{background:#fff;color:var(--ink)}
 .rank{font-size:1.4em;animation:slide .5s both}
 </style></head><body>
 <div id="fl"></div><div id="app"></div>
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
 const ROOM='varya-quiz-m4k7'; // поменяй на любое своё уникальное слово
 // Вопрос = [текст, ответ, картинка?]. Картинку клади в папку media/. Имя с "~" в начале (например "~chat1.jpg") = замазана, пока не показан ответ.
@@ -63,15 +64,11 @@ const LV=[
  {n:"Невозможный",s:"Только Варя это знает",e:"🤫",e2:"😈",pts:400,c:"#6d28d9",c2:"#c026d3",q:[
   ["Рост Вари?","156"],["Размер обуви Вари?","37"],["Какой цвет волос был у Вари в 2020?","Рыжий"],["Кем Варя мечтала стать в детстве?","Стоматологом"],["Любимый комикс Вари в детстве?","Ранфрен"]]}
 ];
-// Для связи между разными сетями (Wi-Fi + мобильный) нужен TURN-сервер.
-// Бесплатно: зарегистрируйся на metered.ca (20 ГБ/мес), создай credential и вставь username и credential сюда:
-const TURN_USER='',TURN_PASS='';
-const ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.relay.metered.ca:80'},
- {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}];
-if(TURN_USER)ICE.push({urls:['turn:standard.relay.metered.ca:80','turn:standard.relay.metered.ca:80?transport=tcp','turn:standard.relay.metered.ca:443','turns:standard.relay.metered.ca:443?transport=tcp'],username:TURN_USER,credential:TURN_PASS});
-const PCFG={config:{iceServers:ICE}};
+// Настройки Firebase: вставь сюда свой firebaseConfig (инструкция в чате). Нужен databaseURL!
+const FB={apiKey:"AIzaSyDLepUZgwNLtTLZ7xa9xbrm3x2uhxJ4-BQ",authDomain:"varvarvarvar-ef634.firebaseapp.com",databaseURL:"https://varvarvarvar-ef634-default-rtdb.europe-west1.firebasedatabase.app",projectId:"varvarvarvar-ef634",appId:"1:474789664481:web:27522e793a9982a3be49a0"};
+const R='rooms/'+ROOM;
 const app=document.getElementById('app'),fl=document.getElementById('fl');
-let role,peer,conns=[],hostConn,S,G,myId,pidOf={},rt=null;
+let role,S,G,myId,db,lastJ=0;
 const AV=["😎","🦊","🐸","🤖","👻","🦄","🐯","🍕"];
 const lvl=i=>LV[i];
 
@@ -85,22 +82,21 @@ function floaty(em){const k=[...new Intl.Segmenter().segment(em)].map(x=>x.segme
  fl.innerHTML=Array.from({length:16},(_,i)=>`<span style="left:${i*6.4}%;animation-duration:${9+i%6*3}s;animation-delay:-${i*2}s;font-size:${24+i%4*12}px">${k[i%k.length]}</span>`).join('')}
 
 // ---------- ВЕДУЩИЙ ----------
-function startHost(resume,tries=0){
- role='host';sessionStorage.varyaHost='1';
- if(tries===0){conns=[];pidOf={};let saved=null;try{saved=resume&&JSON.parse(localStorage.varyaG)}catch(e){}
-  G=saved||{players:{},stage:'lobby',lv:0,qi:0,open:false,buzzer:null,locked:[],wrong:null,hint:""}}
+let dbOk=false;
+function initDb(){if(FB.apiKey==='ВСТАВЬ'||!FB.databaseURL){app.innerHTML='<h2>Не вставлены настройки Firebase</h2><p>Вставь firebaseConfig в начало скрипта.</p>';return false}
+ if(!dbOk){firebase.initializeApp(FB);db=firebase.database();dbOk=true}return true}
+const send=m=>db.ref(R+'/msgs').push({...m,pid:myId});
+function startHost(resume){
+ role='host';sessionStorage.varyaHost='1';myId='host';
+ let saved=null;try{saved=resume&&JSON.parse(localStorage.varyaG)}catch(e){}
+ G=saved||{players:{},stage:'lobby',lv:0,qi:0,open:false,buzzer:null,locked:[],wrong:null,hint:""};
  app.innerHTML='Запускаю комнату...';
- try{peer&&peer.destroy()}catch(e){}
- peer=new Peer(ROOM,PCFG);
- peer.on('open',id=>{myId=id;push()});
- peer.on('error',e=>{if(e.type==='unavailable-id'&&tries<10){app.innerHTML='Занимаю комнату… ('+(tries+1)+')';setTimeout(()=>startHost(resume,tries+1),3000)}
-  else alert(e.type==='unavailable-id'?'Комната занята: закрой другую вкладку ведущего.':'Ошибка: '+e.type)});
- peer.on('connection',c=>{conns.push(c);c.on('data',m=>onMsg(c,m));c.on('open',push);c.on('close',()=>{conns=conns.filter(x=>x!==c)})});
+ if(!initDb())return;
+ db.ref(R+'/msgs').remove().then(()=>{db.ref(R+'/msgs').on('child_added',sn=>{onMsg(sn.val());sn.ref.remove()});push()});
 }
-function onMsg(c,m){
- if(m.t==='join'&&m.role==='player'&&m.pid){pidOf[c.peer]=m.pid;
-  if(!G.players[m.pid])G.players[m.pid]={name:m.name||'Игрок',av:m.av||'😎',color:`hsl(${Math.random()*360|0},80%,60%)`,score:0}}
- const id=pidOf[c.peer];
+function onMsg(m){const id=m.pid;
+ if(m.t==='join'&&m.role==='player'&&id){db.ref(R+'/kick/'+id).remove();
+  if(!G.players[id])G.players[id]={name:m.name||'Игрок',av:m.av||'😎',color:`hsl(${Math.random()*360|0},80%,60%)`,score:0}}
  if(m.t==='buzz'&&G.stage==='q'&&G.open&&!G.buzzer&&G.players[id]&&!G.locked.includes(id)){G.buzzer=id;G.open=false;G.wrong=null}
  push();
 }
@@ -110,7 +106,7 @@ function pub(){const L=LV[G.lv],ans=G.stage==='ans';
   L:L&&{n:L.n,s:L.s,e:L.e,e2:L.e2,pts:L.pts,c:L.c,c2:L.c2,dark:L.dark,tot:L.q.length},
   q:L&&['q','ans'].includes(G.stage)?{t:Q()[0],m:Q()[2]||null,a:ans?Q()[1]:null}:null,
   open:G.open,buzzer:G.buzzer,locked:G.locked,wrong:G.wrong,hint:G.hint}}
-function push(){S=pub();try{localStorage.varyaG=JSON.stringify(G)}catch(e){}conns.forEach(c=>c.open&&c.send({t:'s',s:S}));render()}
+function push(){S=pub();try{localStorage.varyaG=JSON.stringify(G)}catch(e){}if(db)db.ref(R+'/state').set(JSON.stringify(S));render()}
 const pts=()=>LV[G.lv].pts,nm=id=>id&&G.players[id]?G.players[id].name:'';
 function toTitle(){G.stage='title';push()}
 function begin(){Object.assign(G,{lv:0,qi:0,stage:'lvl'});push()}
@@ -123,24 +119,21 @@ function showAns(){G.stage='ans';G.open=false;push()}
 function edit(id){const p=G.players[id];const n=prompt('Имя:',p.name);if(n)p.name=n;const s=prompt('Очки:',p.score);if(s!==null&&!isNaN(+s))p.score=+s;push()}
 function del(id){if(!confirm('Удалить игрока '+G.players[id].name+'?'))return;delete G.players[id];G.locked=G.locked.filter(x=>x!==id);
  if(G.wrong===id)G.wrong=null;if(G.buzzer===id){G.buzzer=null;if(G.stage==='q')G.open=true}
- conns.forEach(c=>{if(pidOf[c.peer]===id){try{c.send({t:'kick'})}catch(e){}setTimeout(()=>c.close(),300);delete pidOf[c.peer]}});push()}
+ db.ref(R+'/kick/'+id).set(Date.now());push()}
 function hint(){const t=prompt('Реплика / подсказка для всех (пусто = убрать):');if(t!==null){G.hint=t;push()}}
 
 // ---------- ЭКРАН / ИГРОК ----------
-function join(r,me,auto){
+function join(r,me){
  me=me||{name:document.getElementById('name').value.trim(),av:document.getElementById('av').value};
  if(r==='player'&&!me.name)return alert('Введи имя');
  role=r;let pid=sessionStorage.varyaPid;if(!pid)pid=sessionStorage.varyaPid=Math.random().toString(36).slice(2,10);
  myId=pid;sessionStorage.varyaMe=JSON.stringify({role:r,name:me.name,av:me.av});
+ if(!initDb())return;
  app.innerHTML='Подключаюсь...';
- try{peer&&peer.destroy()}catch(e){}
- let kicked=false;const retry=()=>{clearTimeout(rt);rt=setTimeout(()=>join(r,me,true),3000)};
- peer=new Peer(PCFG);
- peer.on('open',()=>{hostConn=peer.connect(ROOM,{reliable:true});
-  hostConn.on('open',()=>{auto=true;hostConn.send({t:'join',role:r,name:me.name,av:me.av,pid})});
-  hostConn.on('data',m=>{if(m.t==='kick'){kicked=true;sessionStorage.clear();document.body.style.background='';app.innerHTML='<h2>Ведущий удалил тебя из игры</h2><button onclick="home()">На главную</button>';hostConn.close();return}S=m.s;render()});
-  hostConn.on('close',()=>{if(!kicked){app.innerHTML='Связь потеряна, переподключаюсь…';retry()}})});
- peer.on('error',e=>{if(auto)retry();else{alert('Не удалось подключиться ('+e.type+'). Ведущий уже запустил игру?');home()}});
+ const hi=()=>{lastJ=Date.now();send({t:'join',role:r,name:me.name,av:me.av})};hi();
+ db.ref(R+'/state').on('value',sn=>{const v=sn.val();if(!v){app.innerHTML='Ждём, пока ведущий запустит игру…';return}
+  S=JSON.parse(v);if(r==='player'&&!S.players[pid]&&Date.now()-lastJ>2500)hi();render()});
+ db.ref(R+'/kick/'+pid).on('value',sn=>{if(sn.val()){sessionStorage.clear();db.ref(R+'/state').off();db.ref(R+'/kick/'+pid).off();document.body.style.background='';app.innerHTML='<h2>Ведущий удалил тебя из игры</h2><button onclick="home()">На главную</button>'}});
 }
 const mediaCache={};
 function mediaEl(f,blur){const n=f.replace(/^~/,'');if(!mediaCache[n]){const v=/\.(mp4|webm|mov|m4v)$/i.test(n),e=document.createElement(v?'video':'img');
@@ -174,12 +167,12 @@ function render(){
  }
  if(s.hint)m+=`<div class=panel>💬 ${s.hint}</div>`;
  if(H&&s.stage!=='lobby'&&s.stage!=='end')m+=`<button onclick="hint()">💬 Реплика</button>`;
- if(P&&s.stage==='q')m+=`<button class=buzz ${s.open&&!s.locked.includes(myId)?'':'disabled'} onclick="hostConn.send({t:'buzz'})">ЖМИ!</button>`;
+ if(P&&s.stage==='q')m+=`<button class=buzz ${s.open&&!s.locked.includes(myId)?'':'disabled'} onclick="send({t:'buzz'})">ЖМИ!</button>`;
  const top=Math.max(...Object.values(s.players).map(p=>p.score),1);
  const sc=Object.entries(s.players).map(([id,p])=>`<div class="${id===s.wrong?'bad':p.score===top&&top>1?'win':''}" ${H?`onclick="edit('${id}')"`:''}><i style="background:${p.color}">${p.av}</i><span>${p.name}</span><b>${p.score}</b>${H?`<u onclick="event.stopPropagation();del('${id}')">✕</u>`:''}</div>`).join('');
  app.innerHTML=`<div class=nav><b>Как хорошо ты знаешь Варю?</b><span>${H?'ведущий':P?'игрок':'экран'}</span></div><div class=sc>${sc}</div>${m}`;
  const ph=document.getElementById('mm');if(ph&&s.q&&s.q.m)ph.replaceWith(mediaEl(s.q.m,s.q.m[0]==='~'&&s.stage!=='ans'));
 }
 const me0=JSON.parse(sessionStorage.varyaMe||'null');
-if(sessionStorage.varyaHost)startHost(true);else if(me0)join(me0.role,me0,true);else home();
+if(sessionStorage.varyaHost)startHost(true);else if(me0)join(me0.role,me0);else home();
 </script></body></html>
